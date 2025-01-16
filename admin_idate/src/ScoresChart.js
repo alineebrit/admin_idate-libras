@@ -7,13 +7,15 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
 
 // Registro dos componentes do Chart.js
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -110,9 +112,10 @@ const ScoresChart = () => {
   const [filteredScores, setFilteredScores] = useState([]);
   const [filter, setFilter] = useState("month");
   const [userId, setUserId] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // Nova variável de busca
+  const [searchQuery, setSearchQuery] = useState(""); // Variável de busca
   const [users, setUsers] = useState([]);
   const [userMap, setUserMap] = useState({});
+  const [average, setAverage] = useState(0); // Variável para armazenar a média
 
   useEffect(() => {
     const loadData = async () => {
@@ -137,6 +140,13 @@ const ScoresChart = () => {
     setFilteredScores(data);
   }, [scores, filter, userId]);
 
+  // Atualiza a média toda vez que os dados filtrados ou userId mudarem
+  useEffect(() => {
+    const totalScore = filteredScores.reduce((sum, score) => sum + score.score, 0);
+    const count = filteredScores.length;
+    setAverage(count > 0 ? totalScore / count : 0);
+  }, [filteredScores]);
+
   // Filtro de usuários baseado na busca
   const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -155,6 +165,14 @@ const ScoresChart = () => {
         borderColor: "rgba(75, 192, 192, 1)",
         borderWidth: 1,
       },
+      {
+        label: "Média",
+        data: Array(filteredScores.length).fill(average), // Adiciona a média para todas as posições
+        backgroundColor: "rgba(255, 99, 132, 0.8)", // Cor diferente para destacar
+        borderColor: "rgba(255, 99, 132, 1)",
+        type: "line", // Representa a média como uma linha
+        borderDash: [5, 5], // Linha pontilhada
+      },
     ],
   };
 
@@ -165,9 +183,15 @@ const ScoresChart = () => {
       tooltip: {
         callbacks: {
           label: function (context) {
-            const score = filteredScores[context.dataIndex];
-            const userName = userMap[score.userId] || "Desconhecido";
-            return `${userName}: ${context.raw}`;
+            // Se for o dataset da média, mostra apenas a média
+            if (context.datasetIndex === 1) {
+              return `Média: ${context.raw}`;
+            } else {
+              // Caso contrário, mostra nome, data e hora
+              const score = filteredScores[context.dataIndex];
+              const userName = userMap[score.userId] || "Desconhecido";
+              return `${userName}: ${context.raw}`;
+            }
           },
         },
       },
@@ -176,7 +200,7 @@ const ScoresChart = () => {
       x: {
         title: {
           display: true,
-          text: "Data e Hora", // Rótulo do eixo horizontal
+          text: "Data e Hora",
           font: {
             size: 14,
             weight: "bold",
@@ -191,7 +215,7 @@ const ScoresChart = () => {
       y: {
         title: {
           display: true,
-          text: "Pontuação", // Rótulo do eixo vertical
+          text: "Pontuação",
           font: {
             size: 14,
             weight: "bold",
@@ -220,6 +244,20 @@ const ScoresChart = () => {
           placeholder="Digite o nome"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (searchQuery.trim().toLowerCase() === "todos") {
+                setUserId("");
+              } else {
+                const matchingUsers = users.filter((user) =>
+                  user.name.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                if (matchingUsers.length === 1) {
+                  setUserId(matchingUsers[0].userId);
+                }
+              }
+            }
+          }}
         />
 
         <label>Filtrar por usuário:</label>
@@ -231,6 +269,10 @@ const ScoresChart = () => {
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <p>Média das pontuações: {average.toFixed(2)}</p>
       </div>
 
       <div style={{ width: "600px", height: "400px", margin: "auto" }}>
