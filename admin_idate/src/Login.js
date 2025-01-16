@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./firebaseConfig";
-import "./Login.css"; // Importa o arquivo de estilos
+import "./Login.css";
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -10,14 +10,20 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // Atualiza o título da aba do navegador
+  useEffect(() => {
+    document.title = "Monitoramento IDATE/LIBRAS";
+  }, []);
+
+  // Lida com o envio do formulário de login
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      onLogin(userCredential.user);
-      navigate("/admin");
+      onLogin(userCredential.user); // Executa a função de callback após o login bem-sucedido
+      navigate("/admin"); // Redireciona para a página de administração
     } catch (err) {
       setError("Erro ao fazer login: " + err.message);
     }
@@ -26,7 +32,7 @@ const Login = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h2>Login</h2>
+        <h2>Monitoramento IDATE/LIBRAS</h2>
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label>Email:</label>

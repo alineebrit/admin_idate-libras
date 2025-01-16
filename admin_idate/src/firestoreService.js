@@ -131,6 +131,7 @@ const ScoresChart = () => {
       <div>
         <label>Filtrar por:</label>
         <select onChange={(e) => setFilter(e.target.value)} value={filter}>
+        <option value="month">Ano</option>
           <option value="month">Mês</option>
           <option value="week">Semana</option>
           <option value="day">Dia</option>
