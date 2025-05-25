@@ -1,4 +1,4 @@
-/* Estilos gerais para a página */
+/* Estilos gerais */
 body {
   font-family: Arial, sans-serif;
   background-color: #f3f4f6;
@@ -18,32 +18,52 @@ body {
   height: 100%;
 }
 
-/* Card do login */
+/* Card de login */
 .login-card {
   background-color: #fff;
-  padding: 20px 30px;
+  padding: 25px 30px;
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 300px;
+  width: 350px;
+  text-align: center;
 }
 
-/* Título */
-.login-card h2 {
-  text-align: center;
-  color: #333;
+/* Logo */
+.login-logo {
+  width: 100px;
+  margin-bottom: 10px;
+}
+
+/* Título e textos */
+h2 {
+  color: #123068;
+  margin-bottom: 5px;
+}
+
+.login-subtitle {
+  font-size: 18px;
+  font-weight: bold;
+  color: black;
+}
+
+.login-instruction {
+  font-size: 14px;
+  color: black;
   margin-bottom: 20px;
 }
 
-/* Estilização dos campos do formulário */
+/* Estilos dos inputs */
 .form-group {
   margin-bottom: 15px;
+  text-align: left;
 }
 
 .form-group label {
   display: block;
+  font-size: 14px;
   color: #555;
   margin-bottom: 5px;
-  font-size: 14px;
+  font-weight: 700;
 }
 
 .form-group input {
@@ -58,8 +78,8 @@ body {
 /* Botão de login */
 .login-button {
   width: 100%;
-  padding: 10px;
-  background-color: #4CAF50;
+  padding: 12px;
+  background-color: #123068;
   color: white;
   border: none;
   border-radius: 5px;
@@ -69,7 +89,7 @@ body {
 }
 
 .login-button:hover {
-  background-color: #45a049;
+  background-color: #0d2454;
 }
 
 /* Mensagem de erro */
@@ -77,5 +97,15 @@ body {
   color: red;
   font-size: 14px;
   margin-top: 10px;
-  text-align: center;
+}
+
+/* Link de registro */
+.register-link {
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.register-link a {
+  color: grey;
+  text-decoration: underline;
 }

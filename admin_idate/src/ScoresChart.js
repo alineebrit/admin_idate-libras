@@ -1,5 +1,5 @@
-import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
 import React, { useState, useEffect } from "react";
 import { Bar } from "react-chartjs-2";
 import {
@@ -7,15 +7,13 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
+import "./ScoresChart.css";
 
-// Registro dos componentes do Chart.js
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -28,150 +26,114 @@ const firebaseConfig = {
   measurementId: "G-HTELLQ3LJM",
 };
 
-// Inicializa o Firebase
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
 /**
- * Busca todos os documentos da coleção 'scores'.
- * @returns {Array} Lista de documentos com os dados salvos.
+ * Busca pontuações do Firestore e usuários associados.
  */
-async function fetchScoresFromFirestore() {
+async function fetchScoresAndUsers() {
   try {
-    const querySnapshot = await getDocs(collection(db, "scores"));
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
+    const scoresSnapshot = await getDocs(collection(db, "scores"));
+    const scoresData = scoresSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+      };
+    });
+
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const usersData = usersSnapshot.docs.reduce((acc, doc) => {
+      const userData = doc.data();
+      acc[doc.id] = userData.name;
+      return acc;
+    }, {});
+
+    const scoresWithUsers = scoresData.map((score) => ({
+      ...score,
+      user: score.name || usersData[score.userId] || "Desconhecido", // ✅ Aqui agora está certo
     }));
+
+    return scoresWithUsers;
   } catch (error) {
-    console.error("Erro ao buscar os dados do Firestore:", error);
+    console.error("Erro ao buscar dados:", error);
     return [];
   }
 }
 
-/**
- * Busca todos os usuários da coleção 'users'.
- * @returns {Array} Lista de usuários ({ userId, name }).
- */
-async function fetchUsersFromFirestore() {
-  try {
-    const querySnapshot = await getDocs(collection(db, "users"));
-    return querySnapshot.docs.map((doc) => ({
-      userId: doc.id,
-      ...doc.data(),
-    }));
-  } catch (error) {
-    console.error("Erro ao buscar os usuários do Firestore:", error);
-    return [];
-  }
-}
-
-/**
- * Filtra os dados por data e usuário.
- * @param {Array} scores - Dados completos do Firestore.
- * @param {string} filter - Filtro de data (month, week, day, year).
- * @param {string} userId - ID do usuário para filtrar.
- * @returns {Array} Dados filtrados.
- */
-function filterScores(scores, filter, userId) {
-  const now = new Date();
-
-  return scores.filter((score) => {
-    const date = score.timestamp?.toDate?.();
-    if (!date) return false;
-
-    const matchesUser = userId ? score.userId === userId : true;
-
-    if (filter === "month") {
-      return (
-        matchesUser &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear()
-      );
-    } else if (filter === "week") {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(now.getDate() - 7);
-      return matchesUser && date >= oneWeekAgo && date <= now;
-    } else if (filter === "day") {
-      return (
-        matchesUser &&
-        date.getDate() === now.getDate() &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear()
-      );
-    } else if (filter === "year") {
-      return matchesUser && date.getFullYear() === now.getFullYear();
-    }
-
-    return matchesUser;
-  });
-}
 
 const ScoresChart = () => {
   const [scores, setScores] = useState([]);
   const [filteredScores, setFilteredScores] = useState([]);
   const [filter, setFilter] = useState("month");
-  const [userId, setUserId] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // Variável de busca
+  const [userFilter, setUserFilter] = useState("Todos");
   const [users, setUsers] = useState([]);
-  const [userMap, setUserMap] = useState({});
-  const [average, setAverage] = useState(0); // Variável para armazenar a média
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const loadData = async () => {
-      const scoresData = await fetchScoresFromFirestore();
-      setScores(scoresData);
-
-      const usersData = await fetchUsersFromFirestore();
-      setUsers(usersData);
-
-      const userMapping = {};
-      usersData.forEach((user) => {
-        userMapping[user.userId] = user.name;
-      });
-      setUserMap(userMapping);
+    const loadScores = async () => {
+      const data = await fetchScoresAndUsers();
+      setScores(data);
+      const uniqueUsers = ["Todos", ...new Set(data.map((score) => score.user).filter(Boolean))];
+      setUsers(uniqueUsers);
     };
 
-    loadData();
+    loadScores();
   }, []);
 
   useEffect(() => {
-    const data = filterScores(scores, filter, userId);
-    setFilteredScores(data);
-  }, [scores, filter, userId]);
+    let filteredData = scores;
 
-  // Atualiza a média toda vez que os dados filtrados ou userId mudarem
-  useEffect(() => {
-    const totalScore = filteredScores.reduce((sum, score) => sum + score.score, 0);
-    const count = filteredScores.length;
-    setAverage(count > 0 ? totalScore / count : 0);
-  }, [filteredScores]);
+    if (userFilter !== "Todos") {
+      filteredData = filteredData.filter((score) => score.user === userFilter);
+    }
 
-  // Filtro de usuários baseado na busca
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const now = new Date();
+    filteredData = filteredData.filter((score) => {
+      if (!score.timestamp) return false;
+      const date = new Date(score.timestamp.seconds * 1000);
 
+      if (filter === "year") return date.getFullYear() === now.getFullYear();
+      if (filter === "month") return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      if (filter === "week") {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        return date >= oneWeekAgo && date <= now;
+      }
+      if (filter === "day") {
+        return date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+
+    setFilteredScores(filteredData);
+  }, [scores, userFilter, filter]);
+
+  const handleSearch = (e) => {
+    const query = e.target.value.toLowerCase();
+    setSearchTerm(query);
+
+    const matchingUsers = users.filter((user) => user.toLowerCase().includes(query));
+    if (matchingUsers.length === 1) {
+      setUserFilter(matchingUsers[0]);
+    }
+  };
+
+  // 🔧 Definição do gráfico corrigida antes do return
   const chartData = {
-    labels: filteredScores.map((score) => {
-      const date = score.timestamp.toDate();
-      return date.toLocaleString("pt-BR");
-    }),
+    labels: filteredScores.map((score) =>
+      new Date(score.timestamp.seconds * 1000).toLocaleString("pt-BR")
+    ),
     datasets: [
       {
         label: "Pontuações",
         data: filteredScores.map((score) => score.score),
-        backgroundColor: "rgba(75, 192, 192, 0.6)",
-        borderColor: "rgba(75, 192, 192, 1)",
+        backgroundColor: "rgba(18, 48, 104, 0.6)",
+        borderColor: "rgba(18, 48, 104, 1)",
         borderWidth: 1,
-      },
-      {
-        label: "Média",
-        data: Array(filteredScores.length).fill(average), // Adiciona a média para todas as posições
-        backgroundColor: "rgba(255, 99, 132, 0.8)", // Cor diferente para destacar
-        borderColor: "rgba(255, 99, 132, 1)",
-        type: "line", // Representa a média como uma linha
-        borderDash: [5, 5], // Linha pontilhada
+        hoverBackgroundColor: "rgba(255, 99, 132, 0.7)",
+        hoverBorderColor: "rgba(255, 99, 132, 1)",
       },
     ],
   };
@@ -182,43 +144,9 @@ const ScoresChart = () => {
     plugins: {
       tooltip: {
         callbacks: {
-          label: function (context) {
-            // Se for o dataset da média, mostra apenas a média
-            if (context.datasetIndex === 1) {
-              return `Média: ${context.raw}`;
-            } else {
-              // Caso contrário, mostra nome, data e hora
-              const score = filteredScores[context.dataIndex];
-              const userName = userMap[score.userId] || "Desconhecido";
-              return `${userName}: ${context.raw}`;
-            }
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        title: {
-          display: true,
-          text: "Data e Hora",
-          font: {
-            size: 14,
-            weight: "bold",
-          },
-        },
-        ticks: {
-          autoSkip: true,
-          maxRotation: 45,
-          minRotation: 0,
-        },
-      },
-      y: {
-        title: {
-          display: true,
-          text: "Pontuação",
-          font: {
-            size: 14,
-            weight: "bold",
+          label: function (tooltipItem) {
+            const score = filteredScores[tooltipItem.dataIndex];
+            return `Usuário: ${score.user} | Tipo: ${score.idateType || "N/A"} | Pontuação: ${score.score}`;
           },
         },
       },
@@ -226,56 +154,48 @@ const ScoresChart = () => {
   };
 
   return (
-    <div>
+    <div className="chart-container">
       <h2>Gráficos de Pontuação</h2>
 
-      <div>
-        <label>Filtrar por data:</label>
-        <select onChange={(e) => setFilter(e.target.value)} value={filter}>
-          <option value="month">Mês</option>
-          <option value="week">Semana</option>
-          <option value="day">Dia</option>
-          <option value="year">Ano</option>
-        </select>
+      <div className="filters">
+        {/* Filtro por usuário */}
+        <div className="filter-item">
+          <label>Filtrar por usuário:</label>
+          <select onChange={(e) => setUserFilter(e.target.value)} value={userFilter}>
+            {users.map((user) => (
+              <option key={user} value={user}>{user}</option>
+            ))}
+          </select>
+        </div>
 
-        <label>Buscar usuário:</label>
-        <input
-          type="text"
-          placeholder="Digite o nome"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              if (searchQuery.trim().toLowerCase() === "todos") {
-                setUserId("");
-              } else {
-                const matchingUsers = users.filter((user) =>
-                  user.name.toLowerCase().includes(searchQuery.toLowerCase())
-                );
-                if (matchingUsers.length === 1) {
-                  setUserId(matchingUsers[0].userId);
-                }
-              }
-            }
-          }}
-        />
+        <div className="filter-item search-box-container">
+  <label>Buscar:</label>
+  <div className="search-input">
+    <span className="search-icon">🔍</span>
+    <input 
+      type="text" 
+      className="search-box"
+      placeholder="Buscar usuário..." 
+      value={searchTerm} 
+      onChange={handleSearch} 
+    />
+  </div>
+</div>
 
-        <label>Filtrar por usuário:</label>
-        <select onChange={(e) => setUserId(e.target.value)} value={userId}>
-          <option value="">Todos</option>
-          {filteredUsers.map((user) => (
-            <option key={user.userId} value={user.userId}>
-              {user.name}
-            </option>
-          ))}
-        </select>
+
+        {/* Filtro por data */}
+        <div className="filter-item">
+          <label>Filtrar por data:</label>
+          <select onChange={(e) => setFilter(e.target.value)} value={filter}>
+            <option value="year">Ano</option>
+            <option value="month">Mês</option>
+            <option value="week">Semana</option>
+            <option value="day">Dia</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <p>Média das pontuações: {average.toFixed(2)}</p>
-      </div>
-
-      <div style={{ width: "600px", height: "400px", margin: "auto" }}>
+      <div className="chart-wrapper">
         <Bar data={chartData} options={chartOptions} />
       </div>
     </div>
@@ -283,3 +203,4 @@ const ScoresChart = () => {
 };
 
 export default ScoresChart;
+
