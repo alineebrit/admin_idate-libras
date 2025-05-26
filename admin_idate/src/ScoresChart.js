@@ -70,6 +70,8 @@ const ScoresChart = () => {
   const [userFilter, setUserFilter] = useState("Todos");
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("Todos");
+  const [types, setTypes] = useState([]);
 
   useEffect(() => {
     const loadScores = async () => {
@@ -77,6 +79,9 @@ const ScoresChart = () => {
       setScores(data);
       const uniqueUsers = ["Todos", ...new Set(data.map((score) => score.user).filter(Boolean))];
       setUsers(uniqueUsers);
+
+    const uniqueTypes = ["Todos", ...new Set(data.map((score) => score.idateType).filter(Boolean))];
+    setTypes(uniqueTypes);
     };
 
     loadScores();
@@ -88,6 +93,10 @@ const ScoresChart = () => {
     if (userFilter !== "Todos") {
       filteredData = filteredData.filter((score) => score.user === userFilter);
     }
+
+    if (typeFilter !== "Todos") {
+    filteredData = filteredData.filter((score) => score.idateType === typeFilter);
+  }
 
     const now = new Date();
     filteredData = filteredData.filter((score) => {
@@ -108,7 +117,7 @@ const ScoresChart = () => {
     });
 
     setFilteredScores(filteredData);
-  }, [scores, userFilter, filter]);
+  }, [scores, userFilter, typeFilter, filter]);
 
   const handleSearch = (e) => {
     const query = e.target.value.toLowerCase();
@@ -146,7 +155,7 @@ const ScoresChart = () => {
         callbacks: {
           label: function (tooltipItem) {
             const score = filteredScores[tooltipItem.dataIndex];
-            return `Usuário: ${score.user} | Tipo: ${score.idateType || "N/A"} | Pontuação: ${score.score}`;
+            return `Usuário: ${score.user} | Tipo: IDATE - ${score.idateType || "N/A"} | Pontuação: ${score.score}`;
           },
         },
       },
@@ -156,8 +165,19 @@ const ScoresChart = () => {
   return (
     <div className="chart-container">
       <h2>Gráficos de Pontuação</h2>
-
       <div className="filters">
+
+      <div className="filter-item">
+        <label>Filtrar por tipo:</label>
+        <select onChange={(e) => setTypeFilter(e.target.value)} value={typeFilter}>
+          {types.map((type) => (
+            <option key={type} value={type}>
+              {type === "Todos" ? "Todos" : `IDATE - ${type}`}
+            </option>
+          ))}
+        </select>
+      </div>
+
         {/* Filtro por usuário */}
         <div className="filter-item">
           <label>Filtrar por usuário:</label>
